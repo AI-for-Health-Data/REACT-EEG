@@ -1,16 +1,11 @@
-"""Matched anchor-vs-reversal diagnostic using the frozen September-18 harness."""
-
 from __future__ import annotations
-
 import argparse
 import fcntl
 import hashlib
 import json
 from pathlib import Path
-
 import numpy as np
 import torch
-
 import fresh.run as core
 from fresh.anchor_models import make_anchor_control
 
@@ -301,9 +296,6 @@ def run_task(orig_study, out, index, device):
     )
 
     normalizer = core.fit_scaler(train_raw)
-
-    # Verify the diagnostic uses exactly the scaler that generated the
-    # September-18 paper run.
     orig_cell = orig_study / "runs" / name
     original_scaler = load_saved_scaler(orig_cell / "scaler.npz")
     assert_same_scaler(normalizer, original_scaler)
@@ -383,8 +375,6 @@ def run_task(orig_study, out, index, device):
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
-    # All three controls begin from exactly the same Compact shared weights
-    # and see exactly the same minibatch ordering.
     if len(set(shared.values())) != 1:
         raise AssertionError(
             f"Diagnostic shared initialization mismatch: {shared}"
@@ -404,7 +394,6 @@ def run_task(orig_study, out, index, device):
         },
     )
 
-    # Held role is opened only after all diagnostic controls are trained.
     test_raw, test_y, test_ids, test_records = core.load_role(
         data_root,
         dataset,
