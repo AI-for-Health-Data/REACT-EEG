@@ -1,4 +1,3 @@
-"""Create tables and a review manuscript ONLY from a complete measured cohort."""
 from __future__ import annotations
 import argparse, json, shutil, subprocess, traceback, zipfile
 from pathlib import Path
@@ -103,10 +102,8 @@ def generate_paper(study,plan,metrics,results,analysis,paper,layout_test=False):
             e=part[part.measure=='endpoint'].iloc[0];q=part[part.measure=='normalized_accuracy_duration_area'].iloc[0]
             rows.append([DSETS[d],LABELS[base],r'$%+.2f\ [%.2f,%.2f]$'%(e.difference_pp,e.ci_low,e.ci_high),
                          r'$%+.2f\ [%.2f,%.2f]$'%(q.difference_pp,q.ci_low,q.ci_high)])
-    # First two columns left aligned, overrides generic all-numeric form.
     latex_table(paper/'mechanism_table.tex',['Dataset','Comparator',r'$\Delta$ endpoint (pp)',r'$\Delta Q$ (pp)'],rows)
     p=paper/'mechanism_table.tex';p.write_text(p.read_text().replace('{lrrr}','{llrr}'))
-    # Finite test scope is reported with coverage, not a bare universal claim.
     crows=[]
     for m in ['compact','reader','ff','compact_mean']:
         for tag in ['trained','nondegenerate']:
@@ -137,7 +134,6 @@ def generate_paper(study,plan,metrics,results,analysis,paper,layout_test=False):
        %(key.difference_pp,key.ci_low,key.ci_high)+
        r'Capacity and readout controls, finite trained-model causality checks, and scoped inference timings '
        r'characterize the complete configuration; they do not isolate temporal direction from every readout effect.')
-    # Percent formatting above deliberately emits valid LaTeX percent escapes.
     abstract=abstract.replace(r'\\%',r'\%')
     (paper/'abstract_results.tex').write_text(abstract+'\n')
     endpoint_text=[]
@@ -215,7 +211,6 @@ def collect(study):
         if missing:
             status=dict(status='INCOMPLETE',expected_models=len(plan['tasks'])*len(plan['models']),found=len(results),missing=missing)
             write_json(study/'cohort_status.json',status);pack(study);return status
-        # Model-independent held inputs and preprocessing must match across all seeds.
         for (ds,s),group in metrics.groupby(['dataset','subject']):
             for col in ['prepared_x_hash','test_labels_hash','test_ids_hash','normalizer_hash','n_test']:
                 if group[col].nunique()!=1:raise ValueError('Cohort mismatch: '+str((ds,s,col)))
