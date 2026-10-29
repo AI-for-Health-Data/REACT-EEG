@@ -1,4 +1,3 @@
-"""Train/evaluate the NEW matched cohort. Existing runs are never read or overwritten."""
 from __future__ import annotations
 import argparse, copy, fcntl, json, os, random, time, traceback
 from pathlib import Path
@@ -114,7 +113,6 @@ def train_one(model,train,y,folder,signature,seed,recipe,device,initial_hash,ini
             atomic_torch(last,ck);write_json(folder/'training_history.json',history)
         if epoch==interrupt_after:return ck
     model.eval();constrain(model)
-    # Freeze any upstream forward-time max-norm projection before final checkpoint.
     with torch.inference_mode():
         probe=model(xcpu[:2].to(device)).detach().cpu()
     ck=dict(state_dict=model.state_dict(),epoch=recipe['epochs'],signature=signature,
