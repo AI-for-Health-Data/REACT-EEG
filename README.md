@@ -2,9 +2,15 @@
 
 ## Reverse-Encoded Anytime Causal Temporal Modeling for EEG Decoding
 
-Research code accompanying the manuscript **REACT-EEG: Reverse-Encoded Anytime Causal Temporal Modeling for EEG Decoding**.
+Official research code accompanying:
 
-REACT-EEG classifies EEG at different observation lengths using the same trained checkpoint. It combines a forward temporal reader, summarized at the newest observed token, with an independent reverse reader that processes the observed tokens from newest to oldest. A learned feature-wise gate fuses the two representations before classification.
+**REACT-EEG: Reverse-Encoded Anytime Causal Temporal Modeling for EEG Decoding**
+
+Accepted at the **7th International Workshop on Machine Learning for EEG Signal Processing (MLESP 2026)**, held in conjunction with **IEEE BIBM 2026**.
+
+REACT-EEG is an anytime EEG decoder that uses only the EEG available when a prediction is requested. The model combines a forward temporal reader, summarized at the newest observed token, with an independently parameterized reverse reader that processes the observed tokens from newest to oldest. Their representations are combined using a learned feature-wise gate before classification.
+
+A single trained checkpoint can be evaluated at multiple observation lengths without training a separate model for every decision time.
 
 ## Model Architecture
 
@@ -13,7 +19,7 @@ REACT-EEG classifies EEG at different observation lengths using the same trained
 </p>
 
 <p align="center">
-  <em>REACT-EEG architecture at observation boundary \(m\). The model processes only the EEG observed up to the requested decision boundary. A causal temporal-spatial front end converts the available EEG into tokens, which are processed by forward and reverse temporal readers and fused through a learned feature-wise gate before classification.</em>
+  <em>REACT-EEG architecture at observation boundary \(m\). Only EEG observed up to the requested boundary is supplied to the model. A causal temporal-spatial front end constructs tokens, which are processed by forward and reverse temporal readers and combined through feature-wise gated fusion.</em>
 </p>
 
 ## Repository Structure
@@ -21,54 +27,64 @@ REACT-EEG classifies EEG at different observation lengths using the same trained
 ```text
 REACT-EEG/
 ├── README.md
+├── figure.png
+│
 ├── main_source/
-│   ├── fresh/
-│   │   ├── models.py                 
-│   │   ├── controls.py              
-│   │   ├── data.py                  
-│   │   ├── bite.py                   
-│   │   ├── setup.py                  
-│   │   ├── run.py                   
-│   │   ├── smoke.py                  
-│   │   ├── report.py                 
-│   │   └── statistics_base.py        
-│   ├── tests/
-│   ├── scripts/
-│   ├── docs/
-│   └── paper/                      
-├── anchor_source/
-│   ├── fresh/                      
-│   ├── train_reverse_only_final.py
-│   ├── train_paired_random_trunc_final.py
-│   ├── reviewer_eval_controls.py
-│   ├── bite_zerofill_final.py
-│   ├── final_endpoint_stats.py
-│   ├── summarize_reverse_only.py
-│   ├── summarize_paired_random_trunc_final.py
-│   ├── fresh_primary_nauc.py
-│   ├── check_fresh_causality.py
-│   └── make_fresh_anytime_figure.py
-└── main_evidence/                    
+│   └── fresh/
+│       ├── models.py
+│       ├── controls.py
+│       ├── data.py
+│       ├── bite.py
+│       ├── setup.py
+│       ├── run.py
+│       ├── smoke.py
+│       ├── report.py
+│       └── statistics_base.py
+│
+└── anchor_source/
+    ├── fresh/
+    │   └── ...
+    ├── train_reverse_only_final.py
+    ├── train_paired_random_trunc_final.py
+    ├── reviewer_eval_controls.py
+    ├── bite_zerofill_final.py
+    ├── final_endpoint_stats.py
+    ├── summarize_reverse_only.py
+    ├── summarize_paired_random_trunc_final.py
+    ├── fresh_primary_nauc.py
+    ├── check_fresh_causality.py
+    └── make_fresh_anytime_figure.py
 ```
 
-The commands below assume this layout. Both source directories contain a package named `fresh`; use the working directories shown rather than adding both packages to `PYTHONPATH` together. The `main_evidence/` records are not required to start a new study.
+`main_source/fresh/` contains the primary REACT-EEG implementation and within-subject training pipeline.
 
-The documents inside `main_source/` and `anchor_source/` retain archived experiment-development notes. Use this top-level README for current installation and usage instructions. Their `paper/` directories contain earlier report-generation templates. This release covers the primary within-subject experiments and mechanism controls; the separate LOSO and additional endpoint-baseline experiment pipelines are not included.
+`anchor_source/` contains the mechanism-control and reviewer-analysis workflows used for the final manuscript, including reverse-only training, paired random-duration training, mean-imputation evaluation, causality summaries, and accuracy-time analysis.
+
+The two source trees contain separate `fresh` packages. Run commands from the working directories shown below rather than adding both packages to `PYTHONPATH` simultaneously.
+
+This public release does **not** include raw EEG data, trained checkpoints, cluster logs, temporary outputs, manuscript drafts, or the separate LOSO/additional endpoint-baseline training pipelines.
 
 ## Installation
 
-Use Python **3.11 or later** in an isolated environment. Full training and the GPU preflight require a CUDA-capable GPU; the model example and software tests can run on CPU.
+Python **3.11 or later** is recommended.
 
-Clone or download this repository, open a terminal at its root, and run:
+Create an isolated environment:
 
 ```bash
+git clone https://github.com/AI-for-Health-Data/REACT-EEG.git
+cd REACT-EEG
+
 export REACT_ROOT="$PWD"
 
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Install a PyTorch build appropriate for your system using the [official PyTorch installation instructions](https://pytorch.org/get-started/locally/). Then install:
+Install a PyTorch build appropriate for your hardware using the official PyTorch installation instructions:
+
+https://pytorch.org/get-started/locally/
+
+Then install the remaining dependencies:
 
 ```bash
 python -m pip install \
@@ -76,15 +92,16 @@ python -m pip install \
     scipy==1.17.0 \
     scikit-learn==1.8.0 \
     pandas==2.2.3 \
-    matplotlib==3.10.8 \
-    pytest==9.0.2
+    matplotlib==3.10.8
 ```
 
-These dependency versions and PyTorch `2.10.0+cpu` were used for local core-model checks. They are not a recovered lockfile for the original HPC training environment. Git must be installed for baseline retrieval. BiTE's additional dependencies should be checked against the pinned baseline's own `requirements.txt` after study setup.
+The listed package versions were used for local source validation and are not intended as a recovered lockfile for the original HPC training environment.
 
-### Quick Model Check
+Git is also required because the study setup retrieves the pinned BiTE implementation.
 
-This example uses random inputs to check output dimensions and parameter counts. It does not load trained weights or measure classification accuracy.
+## Quick Model Check
+
+The following example checks REACT-EEG output dimensions and trainable parameter counts using random data. It does not load trained weights or evaluate classification accuracy.
 
 ```bash
 PYTHONPATH="$REACT_ROOT/main_source" python - <<'PY'
@@ -93,82 +110,131 @@ from fresh.data import SPECS, grid
 from fresh.models import make_model
 
 torch.set_num_threads(1)
-expected = {"2a": 18916, "2b": 16962, "ssvep": 20140}
+
+expected = {
+    "2a": 18916,
+    "2b": 16962,
+    "ssvep": 20140,
+}
 
 for dataset, cfg in SPECS.items():
     model = make_model(
-        channels=cfg["channels"], classes=cfg["classes"],
-        max_samples=cfg["samples"], pool=cfg["pool"],
-        kind="reader", seed=2025,
+        channels=cfg["channels"],
+        classes=cfg["classes"],
+        max_samples=cfg["samples"],
+        pool=cfg["pool"],
+        kind="reader",
+        seed=2025,
     )
+
     model.project_constraints()
     model.eval()
+
     count = sum(p.numel() for p in model.parameters())
     assert count == expected[dataset]
+
     x = torch.randn(2, cfg["channels"], cfg["samples"])
+
     with torch.inference_mode():
         for m in (grid(dataset)[0], cfg["samples"]):
-            assert model(x[:, :, :m]).shape == (2, cfg["classes"])
+            y = model(x[:, :, :m])
+            assert y.shape == (2, cfg["classes"])
+
     print(f"{dataset}: {count:,} parameters; checks passed")
 PY
 ```
 
+Expected REACT parameter counts are:
+
+| Dataset | Parameters |
+|---|---:|
+| BCICIV-2A | 18,916 |
+| BCICIV-2B | 16,962 |
+| SD-SSVEP | 20,140 |
+
+REACT adds 3,136 trainable parameters relative to either single-reader control.
+
 ## Datasets
 
-Datasets and pretrained checkpoints are **not included**. The executable loader expects already-prepared `.npz` files.
+The datasets and prepared NPZ files are **not distributed in this repository**.
 
-| Dataset | Code key | Subjects | Channels | Classes | Sampling rate | Input | Pooling width |
+The experiments use:
+
+| Dataset | Code key | Subjects | Channels | Classes | Sampling rate | Model input | Pool width |
 |---|---|---:|---:|---:|---:|---:|---:|
 | BCICIV-2A | `2a` | 9 | 22 | 4 | 250 Hz | 1,000 samples / 4 s | 32 |
 | BCICIV-2B | `2b` | 9 | 3 | 2 | 250 Hz | 1,000 samples / 4 s | 32 |
 | SD-SSVEP | `ssvep` | 10 | 8 | 12 | 256 Hz | 256 samples / 1 s | 4 |
 
-Each NPZ file must contain:
+Prepared `.npz` files must contain:
 
 ```text
-data   : finite numeric array [trials, channels, samples]
-label  : one-dimensional integer array [trials], with zero-based labels
+data   : numeric array [trials, channels, samples]
+label  : one-dimensional integer array [trials]
 ```
 
-The required filenames are:
+Labels are expected to be zero-based integer class indices.
+
+### Expected Filenames
 
 ```text
 2a_pre/
-    A01T.npz, A01E.npz                    # Subject 1
-    ...                                  # Subjects 1–9
+    A01T.npz
+    A01E.npz
+    ...
+    A09T.npz
+    A09E.npz
 
 2b_pre/
-    B0101T.npz, B0102T.npz, B0103T.npz    # Subject 1, training sessions 1–3
-    B0104E.npz, B0105E.npz                # Subject 1, test sessions 4–5
-    ...                                  # Subjects 1–9
+    B0101T.npz
+    B0102T.npz
+    B0103T.npz
+    B0104E.npz
+    B0105E.npz
+    ...
+    # corresponding files for subjects 1–9
 
 sdssvep_pre/
-    S01_train.npz, S01_test.npz            # Subject 1
-    ...                                  # Subjects 1–10
+    S01_train.npz
+    S01_test.npz
+    ...
+    S10_train.npz
+    S10_test.npz
 ```
 
-BCICIV-2A uses the training session for fitting and the evaluation session for testing. BCICIV-2B combines sessions 1–3 for training and 4–5 for testing. SD-SSVEP uses the supplied per-subject training and test files without repartitioning. Its observation times are measured from the beginning of the retained segment, not stimulus onset.
+BCICIV-2A uses the official training session for model fitting and the official evaluation session for testing.
 
-The loader fits `StandardScaler` on training trials at each channel–sample coordinate and applies the frozen transformation to held-out inputs. Motor-imagery arrays may contain 1,000 or 1,001 samples; only the first 1,000 are retained. SD-SSVEP arrays must contain 256 samples.
+BCICIV-2B uses sessions 1–3 for training and sessions 4–5 for testing.
 
-**Raw-to-NPZ conversion and the original SD-SSVEP split construction are not included in this source release.** The prepared files must be obtained or generated separately with documented preprocessing and partitions. See [`fresh/data.py`](main_source/fresh/data.py) for the input checks.
+SD-SSVEP uses the supplied per-subject training and testing files without repartitioning.
 
-## Running the Code
+The model loader fits `StandardScaler` using training data only, separately at each channel-sample coordinate, and applies the frozen transformation to held-out inputs.
 
-Run computation on an allocated compute node when using HPC. The original shell and Slurm wrappers contain cluster-specific settings and must be reviewed before reuse.
+Motor-imagery arrays may contain 1,000 or 1,001 samples; only the first 1,000 are retained. SD-SSVEP inputs contain 256 samples.
 
-### 1. Configure a New Study
+**Raw-to-NPZ conversion and construction of the original SD-SSVEP split are not included in this source release.**
 
-Set the prepared-data locations and a **new output directory outside this repository**:
+See:
+
+```text
+main_source/fresh/data.py
+```
+
+for the input validation and loading behavior.
+
+## Configure a Study
+
+Set the prepared-data locations and choose a new output directory outside the repository:
 
 ```bash
 export REACT_DATA_2A="/absolute/path/to/2a_pre"
 export REACT_DATA_2B="/absolute/path/to/2b_pre"
 export REACT_DATA_SSVEP="/absolute/path/to/sdssvep_pre"
+
 export REACT_STUDY="/absolute/path/to/new_react_study"
 ```
 
-Replace the example paths with your own. The study directory must not already exist. Run the following setup block from the same environment:
+Create the study:
 
 ```bash
 python - <<'PY'
@@ -179,40 +245,60 @@ from pathlib import Path
 
 repo = Path(os.environ["REACT_ROOT"]).expanduser().resolve()
 study = Path(os.environ["REACT_STUDY"]).expanduser().resolve()
+
 roots = {
     "2a": str(Path(os.environ["REACT_DATA_2A"]).expanduser().resolve()),
     "2b": str(Path(os.environ["REACT_DATA_2B"]).expanduser().resolve()),
     "ssvep": str(Path(os.environ["REACT_DATA_SSVEP"]).expanduser().resolve()),
 }
+
 if not (repo / "main_source/fresh/models.py").is_file():
     raise SystemExit("REACT_ROOT must point to the repository root.")
+
 if study.exists() or study == repo or repo in study.parents:
-    raise SystemExit("Choose a new study directory outside the repository.")
+    raise SystemExit(
+        "Choose a new study directory outside the repository."
+    )
+
 if not all(Path(root).is_dir() for root in roots.values()):
     raise SystemExit("A prepared-data directory does not exist.")
 
 study.mkdir(parents=True)
+
 shutil.copytree(
-    repo / "main_source", study / "code",
+    repo / "main_source",
+    study / "code",
     ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache"),
 )
-shutil.copy2(repo / "figure.png", study / "code/paper/Fig.png")
+
 sys.path.insert(0, str(study / "code"))
+
 from fresh import setup
+
 setup.DEFAULT_ROOTS.update(roots)
 setup.freeze(study)
 PY
 ```
 
-This creates `study.json`, freezes a source copy in `code/`, records hashes, checks dataset filenames, and retrieves BiTE at commit `924eb32241ba1a7c80dbc4ba097f8c979da17578`. Network access is needed unless the pinned revision is available through the existing local cache.
+The setup records the study configuration, freezes the primary source tree, checks the expected data files, and retrieves the pinned BiTE implementation at:
 
-The retrieved baseline is placed in `$REACT_STUDY/third_party/BiteEEG/`. Review its `requirements.txt` and install any additional dependencies before the next step. A failed setup can leave a partial study directory; preserve its diagnostics and use a new output directory for a corrected attempt.
+```text
+924eb32241ba1a7c80dbc4ba097f8c979da17578
+```
 
-Do not modify a study's frozen code or configuration after training begins. Set these environment variables again when opening a new shell or compute allocation.
+The retrieved baseline is placed under:
 
-### 2. Run the GPU Preflight
+```text
+$REACT_STUDY/third_party/BiteEEG/
+```
 
-Inside an allocated GPU session:
+Review its dependency file and install any additional requirements before training.
+
+Do not modify the frozen study source or configuration after training begins.
+
+## GPU Preflight
+
+On a CUDA-capable compute node:
 
 ```bash
 (
@@ -221,20 +307,31 @@ Inside an allocated GPU session:
 )
 ```
 
-Resolve any errors before starting full training. This preflight uses training-role data and writes `smoke.json`; it is not a held-out benchmark evaluation.
+The preflight checks the software and training-role data. It is not a held-out benchmark evaluation.
 
-### 3. Train and Evaluate
+## Primary Training
 
-Run one subject/seed task:
+Run a single task:
 
 ```bash
 (
     cd "$REACT_STUDY/code"
-    python -m fresh.run --study "$REACT_STUDY" --index 0 --device cuda
+    python -m fresh.run \
+        --study "$REACT_STUDY" \
+        --index 0 \
+        --device cuda
 )
 ```
 
-Task `0` is BCICIV-2A, subject 1, seed 2025. Each task trains **all five primary models**, not only REACT:
+Task `0` corresponds to:
+
+```text
+BCICIV-2A
+subject 1
+seed 2025
+```
+
+Each task trains the five primary models:
 
 | Paper name | Code identifier |
 |---|---|
@@ -244,243 +341,286 @@ Task `0` is BCICIV-2A, subject 1, seed 2025. Each task trains **all five primary
 | Forward mean | `compact_mean` |
 | BiTE | `bite` |
 
+The complete primary experiment contains 84 subject-seed tasks:
+
 | Dataset | Task indices |
-|---|---|
+|---|---:|
 | BCICIV-2A | 0–26 |
 | BCICIV-2B | 27–53 |
 | SD-SSVEP | 54–83 |
 
-Tasks are ordered by dataset, subject, and then seed: 2025, 2026, and 2027. The complete primary experiment contains **84 tasks and 420 model fits**. Run indices 0–83 in a reviewed scheduler array or sequentially within a sufficient compute allocation:
+Tasks are ordered by dataset, subject, and seed:
+
+```text
+2025
+2026
+2027
+```
+
+A complete sequential run can be launched with:
 
 ```bash
 (
     set -e
     cd "$REACT_STUDY/code"
+
     for INDEX in $(seq 0 83); do
-        python -m fresh.run --study "$REACT_STUDY" --index "$INDEX" --device cuda
+        python -m fresh.run \
+            --study "$REACT_STUDY" \
+            --index "$INDEX" \
+            --device cuda
     done
 )
 ```
 
-The main trainer supports identity-checked resume from `last.pt`. Held-out data are opened after all five models in a task have trained. The four core models are evaluated across observation lengths; the primary runner evaluates BiTE at its endpoint only.
+For HPC use, a reviewed scheduler array is recommended instead.
 
-**Training configuration:** 600 epochs, batch size 64, Adam with learning rate and weight decay 0.002, betas (0.9, 0.999), epsilon 1e-8, cosine decay to zero, label smoothing 0.1, and gradient clipping at 5. The evaluation checkpoint is the final epoch. Shared components use matched initialization; the second reader uses fixed constructor seed 918273.
+## Training Configuration
 
-**BiTE note:** BiTE uses its released implementation and dataset-specific settings within the shared 600-epoch training framework, with gradient-norm clipping at 5, consistent with the camera-ready paper.
-
-### 4. Collect Results
-
-After the full primary cohort completes:
-
-```bash
-(
-    cd "$REACT_STUDY/code"
-    python -m fresh.report --study "$REACT_STUDY"
-)
-```
-
-The collector validates completeness and result identities. It refuses to overwrite an existing `analysis/` directory. Its generated paper uses a legacy template in `main_source/paper/`, not the final manuscript.
-
-### Output Files
-
-A completed task has the following structure:
+The primary experiments use:
 
 ```text
-study/runs/2a_S01_seed2025/
-├── scaler.npz
-├── training_data.json
-├── held_data.json
-├── pairing.json
-├── reader/
-│   ├── final.pt
-│   ├── last.pt
-│   ├── result.json
-│   ├── predictions.npz
-│   ├── causality.json
-│   └── training_history.json
-├── compact/
-├── ff/
-├── compact_mean/
-└── bite/
+Epochs                  600
+Batch size              64
+Optimizer               Adam
+Learning rate           0.002
+Weight decay            0.002
+Betas                    (0.9, 0.999)
+Epsilon                  1e-8
+Learning-rate schedule   cosine decay to zero
+Label smoothing          0.1
+Gradient clipping        5
+Evaluation checkpoint    final epoch
+Seeds                    2025, 2026, 2027
 ```
 
-For a trained model, keep its `final.pt` together with the task's `scaler.npz`. Checkpoint weights are stored under `checkpoint["state_dict"]`. Prediction files store `logits`, `y`, `ids`, and `lengths`; core-model logits have shape `[test trials, observation boundaries, classes]`.
+Shared components use matched initialization across corresponding models.
 
-### Inference with a Trained Checkpoint
+### BiTE
 
-<details>
-<summary>Example: BCICIV-2A subject 1, seed 2025, after one second of EEG</summary>
+BiTE uses its released implementation and dataset-specific settings within the shared 600-epoch training framework, with gradient-norm clipping at 5, consistent with the camera-ready manuscript.
 
-This requires the completed task and its prepared data. Only load checkpoints from a trusted source.
+## Observation-Time Evaluation
 
-```bash
-python - <<'PY'
-import json
-import os
-import sys
-from pathlib import Path
-import numpy as np
-import torch
+BCICIV-2A and BCICIV-2B are evaluated from **1 to 4 s** over **28 observation boundaries**.
 
-study = Path(os.environ["REACT_STUDY"]).expanduser().resolve()
-sys.path.insert(0, str(study / "code"))
-from fresh.data import load_role, normalize
-from fresh.run import model_for
+SD-SSVEP is evaluated from **0.25 to 1 s** of the retained segment over **49 observation boundaries**.
 
-plan = json.loads((study / "study.json").read_text())
-task = study / "runs/2a_S01_seed2025"
-with np.load(task / "scaler.npz", allow_pickle=False) as saved:
-    scaler = {key: saved[key] for key in saved.files}
-checkpoint = torch.load(
-    task / "reader/final.pt", map_location="cpu", weights_only=True
-)
-model = model_for("reader", "2a", 2025, study)
-model.load_state_dict(checkpoint["state_dict"], strict=True)
-model.eval()
-raw, labels, _, _ = load_role(plan["data_roots"]["2a"], "2a", 1, "test")
-observed = normalize(raw[:4, :, :250], scaler)
-with torch.inference_mode():
-    logits = model(torch.from_numpy(observed))
-print("Predictions:", logits.argmax(-1).tolist())
-print("Reference labels:", labels[:4].tolist())
-PY
-```
+The same trained checkpoint is reused at all observation boundaries.
 
-Change the sample boundary to query the same checkpoint at another duration. Do not refit the scaler on the test trial.
+Inputs are physically truncated at the requested boundary except in the explicit mean-imputation controls.
 
-</details>
+Incomplete final pooling windows use only the samples observed at the requested boundary.
 
-## Ablation and Control Experiments
+## Reverse-Only Control
 
-These scripts require the primary study, its prepared data, frozen code, saved scalers, and relevant checkpoints. Set a separate output location:
+Reverse only is trained independently rather than being constructed by disabling the forward route of a trained REACT model.
+
+Set an output root for the control experiments:
 
 ```bash
 export REACT_CONTROLS="/absolute/path/to/new_control_outputs"
 ```
 
-### Reverse-Only Training
+Run one subject-seed task with:
 
 ```bash
 python "$REACT_ROOT/anchor_source/train_reverse_only_final.py" \
-    --study "$REACT_STUDY" --out "$REACT_CONTROLS/reverse_only" \
-    --task-index 0 --device cuda
-```
-
-This independently trains the tokenizer, reverse reader, and classifier from matched initialization. It is not a route removal from an already-trained REACT checkpoint.
-
-### Paired Random-Duration Training
-
-```bash
-python "$REACT_ROOT/anchor_source/train_paired_random_trunc_final.py" \
-    --study "$REACT_STUDY" --out "$REACT_CONTROLS/random_duration" \
-    --task-index 0 --device cuda
-```
-
-The `react_rt` and `compact_rt` arms receive identical minibatch orders and duration schedules. Each minibatch samples one boundary uniformly from the evaluation grid and uses one label-smoothed cross-entropy loss, with no additional endpoint term. This script does not provide the main trainer's mid-training checkpoint-resume mechanism.
-
-### Fixed-Anchor and Endpoint-Aligned-Position Controls
-
-```bash
-(
-    cd "$REACT_ROOT/anchor_source"
-    PYTHONPATH=. python -m fresh.anchor_diag \
-        --orig-study "$REACT_STUDY" --out "$REACT_CONTROLS/anchor" \
-        --index 0 --device cuda
-)
-```
-
-For each of these three task-indexed workflows, run indices **0–83** for the full cohort. The anchor diagnostic also runs an earlier forward-only `random_truncation` control; it is not the final paired random-duration comparison.
-
-Collect the completed anchor cohort with:
-
-```bash
-(
-    cd "$REACT_ROOT/anchor_source"
-    PYTHONPATH=. python -m fresh.anchor_report \
-        --orig-study "$REACT_STUDY" --diag-study "$REACT_CONTROLS/anchor"
-)
-```
-
-### Mean-Imputation Evaluation
-
-```bash
-python "$REACT_ROOT/anchor_source/reviewer_eval_controls.py" \
-    --study "$REACT_STUDY" --out "$REACT_CONTROLS/mean_imputation" \
-    --dataset all --device cuda
-
-python "$REACT_ROOT/anchor_source/bite_zerofill_final.py" \
-    --study "$REACT_STUDY" --out "$REACT_CONTROLS/bite_mean_imputation" \
+    --study "$REACT_STUDY" \
+    --out "$REACT_CONTROLS/reverse_only" \
+    --task-index 0 \
     --device cuda
 ```
 
-These evaluations preserve the original input length and replace unavailable samples with zero in standardized space, corresponding to training-set means. The reviewer-control script also evaluates interventions on trained REACT routes; those are distinct from independently trained reverse-only results.
+For the complete cohort, run task indices `0–83`.
 
-## Analysis and Visualization
+## Paired Random-Duration Training
 
-BCICIV-2A/2B are evaluated over **1–4 s at 28 boundaries**; SD-SSVEP is evaluated over **0.25–1 s of the retained segment at 49 boundaries**. Seed accuracies are averaged within subject before aggregation. The checkpoints are not combined into a prediction ensemble.
-
-Normalized accuracy–time area (nAUC) is trapezoidal area divided by the evaluated time interval. It is not ROC AUC. Differences are reported in percentage points. The manuscript uses 10,000 paired subject-bootstrap resamples and separately defined nine-test Holm families.
+Run:
 
 ```bash
-python "$REACT_ROOT/anchor_source/fresh_primary_nauc.py" "$REACT_STUDY"
-python "$REACT_ROOT/anchor_source/check_fresh_causality.py" "$REACT_STUDY"
+python "$REACT_ROOT/anchor_source/train_paired_random_trunc_final.py" \
+    --study "$REACT_STUDY" \
+    --out "$REACT_CONTROLS/random_duration" \
+    --task-index 0 \
+    --device cuda
+```
 
+The REACT and No-reverse arms receive identical minibatch orders and observation-duration schedules.
+
+One observation boundary is sampled uniformly from the evaluation grid for each minibatch, and one label-smoothed cross-entropy loss is evaluated at that duration.
+
+No additional endpoint-weighted loss is used.
+
+For the complete cohort, run task indices `0–83`.
+
+## Fixed-Anchor and Endpoint-Aligned Controls
+
+These controls are implemented in the retained `anchor_source/fresh/` package.
+
+Run:
+
+```bash
+(
+    cd "$REACT_ROOT/anchor_source"
+
+    PYTHONPATH=. python -m fresh.anchor_diag \
+        --orig-study "$REACT_STUDY" \
+        --out "$REACT_CONTROLS/anchor" \
+        --index 0 \
+        --device cuda
+)
+```
+
+For the complete cohort, run indices `0–83`.
+
+## Mean-Imputation Controls
+
+The mean-imputation evaluations retain the complete input geometry and replace unavailable standardized samples with zero, corresponding to the training-set mean.
+
+For No reverse and REACT-related mechanism controls:
+
+```bash
+python "$REACT_ROOT/anchor_source/reviewer_eval_controls.py" \
+    --study "$REACT_STUDY" \
+    --out "$REACT_CONTROLS/mean_imputation" \
+    --dataset all \
+    --device cuda
+```
+
+For BiTE:
+
+```bash
+python "$REACT_ROOT/anchor_source/bite_zerofill_final.py" \
+    --study "$REACT_STUDY" \
+    --out "$REACT_CONTROLS/bite_mean_imputation" \
+    --device cuda
+```
+
+Mean imputation changes the supplied sequence and subsequent computation and should not be interpreted as isolating temporal reversal alone.
+
+## Accuracy-Time Analysis
+
+Seed accuracies are first averaged within each subject.
+
+Normalized area under the accuracy-time curve (nAUC) is calculated using trapezoidal integration divided by the evaluated observation interval.
+
+nAUC is **not ROC AUC**.
+
+Primary nAUC summaries can be generated with:
+
+```bash
+python "$REACT_ROOT/anchor_source/fresh_primary_nauc.py" \
+    "$REACT_STUDY"
+```
+
+## Causality Verification
+
+The paper defines causality at the prepared model input.
+
+At each observation boundary, predictions may depend only on the EEG samples available up to that boundary.
+
+Existing causality records can be summarized using:
+
+```bash
+python "$REACT_ROOT/anchor_source/check_fresh_causality.py" \
+    "$REACT_STUDY"
+```
+
+The verification compares boundary evaluation with direct cropped-input evaluation and includes a future-perturbation test.
+
+A positive control injects dependence on the first unobserved sample into one class logit and verifies that the future-perturbation test detects the leak.
+
+## Accuracy-Time Figure
+
+Generate the primary accuracy-time figure with:
+
+```bash
 mkdir -p "$REACT_CONTROLS/figures"
-MPLBACKEND=Agg python "$REACT_ROOT/anchor_source/make_fresh_anytime_figure.py" \
-    "$REACT_STUDY" "$REACT_CONTROLS/figures/fig2.pdf"
+
+MPLBACKEND=Agg \
+python "$REACT_ROOT/anchor_source/make_fresh_anytime_figure.py" \
+    "$REACT_STUDY" \
+    "$REACT_CONTROLS/figures/fig2.pdf"
 ```
 
-The causality-summary script reads existing `causality.json` records; it does not rerun model tests. Keep model-specific and pooled maxima distinct. The figure generator plots REACT, No reverse, Two forward, and Forward mean; shading is **±1 sample SD across subject-level seed averages**, with dotted chance lines.
+The primary figure includes:
 
-### Additional Statistical Summaries
-
-These scripts retain path constants rather than generic command-line path arguments. Configure them in a working copy before execution:
-
-| Script in `anchor_source/` | Constants to configure |
-|---|---|
-| `final_endpoint_stats.py` | `ORIG`: primary study; `OUT`: output JSON file |
-| `summarize_reverse_only.py` | `ORIG`: primary study; `REV`: reverse-only output |
-| `summarize_paired_random_trunc_final.py` | `ORIG`, `RT`: random-duration output, `REV` |
-
-Ensure the parent directory of `OUT` exists. The paired-duration summary also needs completed reverse-only results.
-
-```bash
-python "$REACT_ROOT/anchor_source/final_endpoint_stats.py"
-python "$REACT_ROOT/anchor_source/summarize_reverse_only.py"
-python "$REACT_ROOT/anchor_source/summarize_paired_random_trunc_final.py"
+```text
+REACT
+No reverse
+Two forward
+Forward mean
 ```
 
-## Results
+## Statistical Summaries
 
-The following values are **reported in the manuscript**, not recomputed from the source archive.
+The following retained scripts generate the final statistical summaries:
 
-| Dataset | Earliest accuracy (%) | nAUC | Endpoint accuracy (%) | REACT parameters |
+```text
+anchor_source/final_endpoint_stats.py
+anchor_source/summarize_reverse_only.py
+anchor_source/summarize_paired_random_trunc_final.py
+```
+
+These scripts retain experiment-path constants from the final analysis environment.
+
+Configure the relevant paths in a working copy before running them.
+
+## Selected Results
+
+The manuscript reports the following REACT results:
+
+| Dataset | Earliest accuracy (%) | nAUC | Endpoint accuracy (%) | Parameters |
 |---|---:|---:|---:|---:|
 | BCICIV-2A | 69.32 | 80.12 | 85.06 | 18,916 |
 | BCICIV-2B | 74.31 | 83.59 | 86.20 | 16,962 |
 | SD-SSVEP | 34.89 | 64.15 | 96.50 | 20,140 |
 
-Earliest boundaries are 1 s for BCICIV-2A/2B and 0.25 s for SD-SSVEP. REACT adds 3,136 parameters relative to either single-reader control.
+Earliest evaluated boundaries are:
 
-After matched random-duration training, the REACT-minus-No-reverse nAUC differences are:
+```text
+BCICIV-2A   1.00 s
+BCICIV-2B   1.00 s
+SD-SSVEP    0.25 s
+```
+
+Under matched random-duration training, the reported REACT-minus-No-reverse nAUC differences are:
 
 | BCICIV-2A | BCICIV-2B | SD-SSVEP |
 |---:|---:|---:|
 | +10.42 [6.44, 15.21] | +0.22 [−1.17, 1.61] | +24.96 [19.17, 30.93] |
 
-Values are percentage-point differences with 95% bootstrap intervals. These results use retrained random-duration models separately. Reverse-only can outperform fused REACT at earlier durations, especially on SD-SSVEP; the paper does not claim uniform superiority across models, datasets, or decision times.
+Values are percentage-point differences with 95% paired subject-bootstrap intervals.
 
-## Testing
+The paper does not claim that REACT is uniformly superior across architectures, datasets, or observation durations. Independently trained reverse-only decoding can outperform the fused model at early observation boundaries.
 
-Run software tests in a working repository copy, not a frozen study directory, because some tests write validation records:
+## Scope of This Release
 
-```bash
-(
-    cd "$REACT_ROOT/main_source"
-    PYTHONPATH=. OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 MPLBACKEND=Agg \
-        python -m pytest tests -q -k 'not full_reporting_layout'
-)
+This repository contains the code needed for the primary within-subject REACT experiments and the main mechanism controls reported in the manuscript.
+
+The following are intentionally not distributed here:
+
+```text
+Raw EEG datasets
+Prepared dataset files
+Trained model checkpoints
+HPC logs
+Temporary experiment outputs
+Internal evidence/audit archives
+Old manuscript versions
+LOSO training pipeline
+Separate additional endpoint-baseline pipelines
 ```
 
-The excluded legacy layout test writes to a fixed `/mnt/data` location. Software tests check implementation behavior; they do not establish reproduction of the reported benchmark scores.
+The LOSO and additional endpoint-baseline results reported in the paper are retained as experimental results, but their separate training workflows are not part of this public source release.
 
+## Citation
+
+If you use this repository, please cite:
+
+> N. Hooman, M. H. Behboudi, H. Y. Adarbah, and M. Gupta,  
+> “REACT-EEG: Reverse-Encoded Anytime Causal Temporal Modeling for EEG Decoding,”  
+> MLESP 2026, in conjunction with IEEE BIBM 2026.
+
+Nikkie Hooman and Mohammad Hossein Behboudi contributed equally to this work.
