@@ -1,16 +1,7 @@
-"""Generic controls using supplied original modules; canonical token shape is B,D,N.
-
-The wrapper does not assume the original repository's internal attribute names.
-A components factory constructs tokenizer, forward_reader, classifier in the
-historical order and returns a separate zero-argument reader_factory.
-"""
 from __future__ import annotations
-
 from typing import Callable
-
 import torch
 from torch import nn
-
 from .common import resolve
 
 
@@ -66,8 +57,6 @@ class ReadoutControl(nn.Module):
         if b is None:
             return {"kind": self.kind, "tokens": z.shape[-1]}
         g = self.gate_logits.sigmoid()
-        # A controlled in-prefix intervention at the SECOND reader input.
-        # Exclude original token 1 so temporal use is distinguished from z1-only.
         zp = z.clone()
         if z.shape[-1] > 1:
             delta = 0.1 * z.detach().std().clamp_min(1e-4)
@@ -96,7 +85,6 @@ class ReadoutControl(nn.Module):
 
 def build_control(components_factory: str, kind: str, seed: int,
                   extra_seed: int = 918273, components_kwargs: dict | None = None) -> ReadoutControl:
-    """The components factory must reuse the user's actual modules, not placeholders."""
     with torch.random.fork_rng(devices=[]):
         torch.default_generator.manual_seed(seed)
         c = resolve(components_factory)(**(components_kwargs or {}))
@@ -111,13 +99,7 @@ def components_from_compact(compact_factory:str,compact_kwargs:dict,tokenizer_pa
                             forward_reader_path:str,classifier_path:str,
                             extra_reader_factory:str,extra_reader_kwargs:dict|None=None,
                             width:int=64) -> dict:
-    """Extract audited modules from the ACTUAL Compact implementation.
 
-    tokenizer_path must include projection AND original positional embeddings and
-    return [B,D,N]. If the source splits those operations across methods, write a
-    small project-specific components factory instead of guessing a module path.
-    This constructs a fresh Compact, not a trained checkpoint ablation.
-    """
     from functools import partial
     compact=resolve(compact_factory)(**compact_kwargs)
     return {"tokenizer":compact.get_submodule(tokenizer_path),
