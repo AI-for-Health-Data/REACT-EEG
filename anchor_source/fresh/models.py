@@ -1,20 +1,9 @@
-"""NEW endpoint-only manuscript implementation. Not a historical checkpoint loader.
-
-Explicit fresh-study choices: bias-free convolutions, projection/classifier biases,
-BN eps=1e-5/momentum=.1, learned positions N(0,.02) sized to the declared maximum,
-zero left padding, stride one, Xavier first residual convolution, zero second
-residual convolution, no post-addition activation, post-step max-norm projection.
-"""
 from __future__ import annotations
-
 import math
-
 import torch
 from torch import nn
 from torch.nn import functional as F
-
 from .controls import ReadoutControl
-
 
 class CausalDepthwise(nn.Module):
     def __init__(self, width: int, kernel: int, dilation: int):
@@ -74,7 +63,6 @@ class Tokenizer(nn.Module):
         m=u.shape[-1]
         n=(m+self.pool-1)//self.pool
         pad=n*self.pool-m
-        # Sum then divide by actual counts, never by right-padded width.
         sums=F.pad(u,(0,pad)).reshape(u.shape[0],96,n,self.pool).sum(-1)
         counts=torch.full((n,),self.pool,device=u.device,dtype=u.dtype)
         counts[-1]=m-(n-1)*self.pool
@@ -103,8 +91,6 @@ class ReferenceControl(ReadoutControl):
     def boundary_curve(self,x,lengths):
         if self.training:
             raise ValueError("Shared-feature boundary_curve is evaluation-only")
-        # Independent path from direct model(x[:,:,:m]): feature computation
-        # receives full input, then prefix-specific pooling and reverse routing.
         u=self.tokenizer.sample_features(x)
         zfull=self.tokenizer.from_features(u)
         ffull=self.forward_reader(zfull)
@@ -131,7 +117,6 @@ class ReferenceControl(ReadoutControl):
 
 def make_model(channels:int,classes:int,max_samples:int,pool:int,kind:str="reader",
                seed:int=2025,extra_seed:int=918273,dropout:float=.3) -> ReferenceControl:
-    # Construct ALL shared modules before extra branch creation.
     with torch.random.fork_rng(devices=[]):
         torch.default_generator.manual_seed(seed)
         tokenizer=Tokenizer(channels,max_samples,pool,64,dropout)
