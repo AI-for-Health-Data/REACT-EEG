@@ -1,9 +1,3 @@
-"""Explicit NEW-study reader for the recovered prepared NPZ role layout.
-
-No original model imports, no historical-checkpoint claims, no label inference.
-Matches the recovered audit/80 loader's bite_within training-only coordinate
-StandardScaler. Raw-to-prepared provenance is recorded separately, not inferred.
-"""
 from __future__ import annotations
 from pathlib import Path
 import numpy as np
@@ -84,8 +78,6 @@ def trial_fingerprints(x):
     return [array_sha(row) for row in x]
 
 def check_role_overlap(train_x,test_x):
-    # Exact prepared-array duplicates only; absence does not establish original
-    # trial/block independence. Source-file ordinal IDs are NOT raw trial IDs.
     overlap=set(trial_fingerprints(train_x)) & set(trial_fingerprints(test_x))
     if overlap:raise ValueError('Exact prepared EEG trial duplicates across train/test roles: '+str(len(overlap)))
     return {'exact_duplicate_trials':0,'scope':'exact prepared-array duplication, not proof of block independence'}
