@@ -1,9 +1,3 @@
-"""Explicit NEW-study reader for the recovered prepared NPZ role layout.
-
-No original model imports, no historical-checkpoint claims, no label inference.
-Matches the recovered audit/80 loader's bite_within training-only coordinate
-StandardScaler. Raw-to-prepared provenance is recorded separately, not inferred.
-"""
 from __future__ import annotations
 from pathlib import Path
 import numpy as np
@@ -45,7 +39,6 @@ def load_role(root, dataset, subject, role):
             if not {'data','label'} <= set(f.files):
                 raise ValueError(str(path)+': expected data and label')
             raw=f['data']; label=f['label']
-            # Do not cast noninteger labels into apparently valid integers.
             if label.dtype.kind not in 'iu' or label.ndim!=1:
                 raise ValueError(str(path)+': labels must be 1-D integers, zero based')
             if raw.ndim!=3 or raw.shape[0]!=len(label) or raw.shape[1]!=cfg['channels']:
@@ -53,7 +46,6 @@ def load_role(root, dataset, subject, role):
             allowed=(1000,1001) if dataset in ('2a','2b') else (256,)
             if raw.shape[-1] not in allowed:
                 raise ValueError(str(path)+': unexpected sample count '+str(raw.shape[-1]))
-            # The original MI _npz loader keeps the first 1000 samples explicitly.
             x=np.asarray(raw[:,:,:cfg['samples']],dtype=np.float64)
             y=np.asarray(label,dtype=np.int64)
             if len(y)<2 or np.any(y<0) or np.any(y>=cfg['classes']) or not np.isfinite(x).all():
@@ -84,8 +76,6 @@ def trial_fingerprints(x):
     return [array_sha(row) for row in x]
 
 def check_role_overlap(train_x,test_x):
-    # Exact prepared-array duplicates only; absence does not establish original
-    # trial/block independence. Source-file ordinal IDs are NOT raw trial IDs.
     overlap=set(trial_fingerprints(train_x)) & set(trial_fingerprints(test_x))
     if overlap:raise ValueError('Exact prepared EEG trial duplicates across train/test roles: '+str(len(overlap)))
     return {'exact_duplicate_trials':0,'scope':'exact prepared-array duplication, not proof of block independence'}
