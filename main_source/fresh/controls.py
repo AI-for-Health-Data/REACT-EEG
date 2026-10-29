@@ -1,18 +1,8 @@
-"""Generic controls using supplied original modules; canonical token shape is B,D,N.
-
-The wrapper does not assume the original repository's internal attribute names.
-A components factory constructs tokenizer, forward_reader, classifier in the
-historical order and returns a separate zero-argument reader_factory.
-"""
 from __future__ import annotations
-
 from typing import Callable
-
 import torch
 from torch import nn
-
 from .common import resolve
-
 
 class ReadoutControl(nn.Module):
     def __init__(self, tokenizer: nn.Module, forward_reader: nn.Module,
@@ -24,8 +14,6 @@ class ReadoutControl(nn.Module):
         self.tokenizer, self.forward_reader, self.classifier = tokenizer, forward_reader, classifier
         self.kind, self.width = kind, width
         if kind in {"reader", "ff"}:
-            # All common modules have already been initialized. CPU constructor
-            # randomness for the additional branch does not consume common RNG.
             with torch.random.fork_rng(devices=[]):
                 torch.default_generator.manual_seed(extra_seed)
                 self.second_reader = reader_factory()
@@ -87,7 +75,6 @@ class ReadoutControl(nn.Module):
 
     @torch.no_grad()
     def project_constraints(self):
-        # Apply only a supplied tokenizer's stated constraint operation.
         if hasattr(self.tokenizer, "project_constraints"):
             self.tokenizer.project_constraints()
         if hasattr(self.classifier, "project_constraints"):
@@ -96,7 +83,6 @@ class ReadoutControl(nn.Module):
 
 def build_control(components_factory: str, kind: str, seed: int,
                   extra_seed: int = 918273, components_kwargs: dict | None = None) -> ReadoutControl:
-    """The components factory must reuse the user's actual modules, not placeholders."""
     with torch.random.fork_rng(devices=[]):
         torch.default_generator.manual_seed(seed)
         c = resolve(components_factory)(**(components_kwargs or {}))
