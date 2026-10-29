@@ -1,7 +1,3 @@
-"""Pinned upstream BiTE, fetched to a separate directory, never relabelled historical.
-The calling convention/STFT follows the supplied BIBM_V2 baseline adapter.
-BiTE source is not redistributed. Fresh-study provenance records all source hashes.
-"""
 from __future__ import annotations
 import importlib.util
 from pathlib import Path
@@ -18,7 +14,6 @@ class BiTEWrapper(nn.Module):
         self.dataset=dataset
         p=Path(root)/'model/BiTE.py'
         if not p.is_file():raise FileNotFoundError(p)
-        # Preserve upstream imports if the pinned file refers to sibling modules.
         import sys
         sys.path.insert(0,str(Path(root).resolve()))
         spec=importlib.util.spec_from_file_location('reader_fresh_upstream_bite',p)
@@ -42,7 +37,6 @@ class BiTEWrapper(nn.Module):
         return stft[:,:,begin:end].permute(0,2,3,1).contiguous()
 
     def forward(self,x):
-        # No full-trial spectral slice is substituted for a prefix.
         out=self.inner(x,self.spectrum(x))
         if not isinstance(out,(tuple,list)) or len(out)<1:
             raise TypeError('Pinned BiTE calling convention changed; expected logits,aux')
