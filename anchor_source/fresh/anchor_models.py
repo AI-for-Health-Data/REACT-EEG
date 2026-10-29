@@ -1,16 +1,10 @@
-"""Anchor-vs-reversal controls layered on the frozen fresh-study model."""
-
 from __future__ import annotations
-
 import torch
 from torch import nn
 import torch.nn.functional as F
-
 from fresh.models import make_model
 
-
 class _CompactBase(nn.Module):
-    """Reuse exactly the Compact tokenizer, forward TCN, and classifier."""
 
     def __init__(self, base):
         super().__init__()
@@ -28,20 +22,8 @@ class _CompactBase(nn.Module):
 
 
 class FixedAnchorForward(_CompactBase):
-    """Chronological processing with one fixed terminal summary token.
-
-    The classifier always reads the TCN state corresponding to the same learned
-    anchor token, independent of the number of observed EEG tokens.  The EEG
-    itself is never reversed.
-
-    The anchor adds only `width` trainable parameters (64 in the paper).
-    """
-
     def __init__(self, base):
         super().__init__(base)
-
-        # Initialize from the endpoint positional vector without consuming a
-        # second random stream. It is then an independent learned summary token.
         self.anchor_token = nn.Parameter(
             self.tokenizer.position[:, :, -1:].detach().clone()
         )
@@ -56,12 +38,6 @@ class FixedAnchorForward(_CompactBase):
 
 
 class RelativePositionForward(_CompactBase):
-    """Latest-token forward readout with positions aligned to the endpoint.
-
-    For an n-token prefix, use the final n vectors of the original positional
-    table rather than positions 1..n. Thus the newest observed token always
-    receives the same positional vector as the full-trial endpoint.
-    """
 
     def _encode(self, x):
         tok = self.tokenizer
@@ -97,11 +73,6 @@ class RelativePositionForward(_CompactBase):
 
 
 class RandomTruncationForward(_CompactBase):
-    """Compact trained with one randomly selected legal duration per minibatch.
-
-    This is NOT a prefix-loss model: every optimizer step still contains one
-    ordinary cross-entropy term for one supplied input duration.
-    """
 
     def __init__(self, base, train_lengths):
         super().__init__(base)
